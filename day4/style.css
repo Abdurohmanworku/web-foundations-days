@@ -1,0 +1,106 @@
+/* ---------- Colour variables (light theme) ---------- */
+:root {
+  --bg: #f0f2f5;
+  --card: #ffffff;
+  --text: #222222;
+  --border: #999999;
+  --accent: #2b3a67;
+  --accent-hover: #4a5fa8;
+  --button-text: #ffffff;
+  --warning-color: #e67e00;
+  --over-color: #d00000;
+}
+
+/* ---------- Dark theme: only the variables change ---------- */
+body.dark {
+  --bg: #121826;
+  --card: #1e2638;
+  --text: #e8eaf0;
+  --border: #55607a;
+  --accent: #7f9cf5;
+  --accent-hover: #a3b8ff;
+  --button-text: #121826;
+  --warning-color: #ffb347;
+  --over-color: #ff6b6b;
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  line-height: 1.6;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+main {
+  max-width: 600px;
+  margin: 24px auto;
+  padding: 20px;
+  background-color: var(--card);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+h1 {
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin: 16px 0 4px;
+}
+
+textarea {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font: inherit;
+  color: var(--text);
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--accent);
+}
+
+p {
+  margin: 8px 0;
+}
+
+/* ---------- Buttons ---------- */
+button {
+  background-color: var(--accent);
+  color: var(--button-text);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: var(--accent-hover);
+}
+
+/* ---------- Counter states ---------- */
+.warning {
+  color: var(--warning-color);
+}
+
+.over {
+  color: var(--over-color);
+  font-weight: bold;
+}
