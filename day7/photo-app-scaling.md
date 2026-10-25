@@ -108,26 +108,29 @@ A database is built for small, structured rows, not 2 MB files. Storing photos t
    ```
    The queue stores the message safely and confirms it has received it. If the push fails, the row stays at `processing`, and a clean-up job later finds old `processing` rows and queues them again.
 7. The app server replies "upload successful" straight away, so the user does not wait for the thumbnail.
-8. A worker takes the next message from the queue. The queue hides that message from other workers for a short time, so two workers do not do the same job.
-9. The worker downloads the original from object storage using `original_key` and resizes it to a thumbnail of about 50 KB.
-10. The worker saves the thumbnail in object storage under `thumbnail_key`.
-11. **Only after the thumbnail is safely stored, the worker updates the database.** It sends a write to the primary:
-    ```sql
-    UPDATE photos
-    SET thumbnail_key = 'thumbnails/2026/10/9812.jpg', status = 'ready'
-    WHERE id = 9812;
-    ```
-    The read replica copies this change a moment later.
-12. The worker tells the queue the job is done, and the queue deletes the message.
-13. The cache entries for followers' feeds are refreshed, and the photo and thumbnail are served through the CDN.
+8. **A worker creates the thumbnail, saves it and updates the photo status:**
+   1. The worker takes the next message from the queue. The queue hides that message from other workers for a short time, so two workers do not do the same job.
+   2. The worker downloads the original from object storage using `original_key`.
+   3. The worker resizes the image to a thumbnail of about 50 KB.
+   4. The worker saves the thumbnail in object storage under `thumbnail_key`, for example `thumbnails/2026/10/9812.jpg`.
+   5. **Only after the thumbnail is safely stored**, the worker updates the photo's row on the database primary:
+      ```sql
+      UPDATE photos
+      SET thumbnail_key = 'thumbnails/2026/10/9812.jpg', status = 'ready'
+      WHERE id = 9812;
+      ```
+      The status changes from `processing` to `ready`, and the read replica copies the change a moment later.
+9. The worker tells the queue the job is done, and the queue deletes the message.
+10. The cache entries for followers' feeds are refreshed, and the photo and thumbnail are served through the CDN.
 
 **If something goes wrong:**
-- If the worker crashes before step 12, the message becomes visible again and another worker retries it. The retry is safe because it writes the same thumbnail file and sets the same status.
+- If the worker crashes before step 9, the message becomes visible again and another worker retries it. The retry is safe because it writes the same thumbnail file and sets the same status.
 - If a job fails several times, the queue moves the message to a "failed jobs" list, and the worker sets the row's status to `failed` so the problem can be investigated.
 
 ## 8. Trade-offs
 
 - **Cache speed vs fresh data:** the cache makes feeds fast, but a user may see slightly old data until the cache expires or is refreshed. A short expiry time keeps it fresher but gives fewer cache hits.
-- **Read replica lag:** reads from the replica are fast and protect the primary, but the replica can be a moment behind. A user may upload a photo and not see it in their feed for a second.
+- **Replication lag vs read speed:** the read replica protects the primary and keeps feeds fast, but it copies data from the primary with a small delay, usually well under a second. In that gap, a user could upload a photo, be sent back to their profile, and not see it yet. The photo is not lost, only not copied yet. *Evaluation:* this is acceptable for a feed, where being a second behind is harmless, so most reads go to the replica. For the few cases where users expect to see their own change straight away (their own profile just after uploading), read from the primary for a short time. This keeps the speed benefit without confusing users, at the cost of a little extra load on the primary.
 - **Background thumbnails vs instant thumbnails:** the queue keeps uploads fast and survives traffic spikes, but a new photo may show a placeholder until the worker finishes. Doing it during the upload would be simpler but slower.
+- **Worker failure recovery: automatic retries vs duplicate work:** the queue only deletes a message after the worker confirms it is finished, so a crashed worker never loses a job because the message returns to the queue and is retried. The cost is that a job can run twice (for example, if a worker finishes but crashes before confirming), so the work must be safe to repeat. *Evaluation:* retries are worth it, because a lost thumbnail would leave a photo stuck on `processing` forever, which is worse than a repeated job. Making the job repeatable is cheap here, since the same thumbnail file is overwritten and the same status is set. A limit on retries and a "failed jobs" list stop a broken image from retrying forever, but someone must watch that list, which adds operating work.
 - **Cost vs performance:** a CDN and extra servers make the app faster and more reliable, but add monthly cost and more parts to maintain. At about 750 TB of new photos per year, storage cost also grows steadily.
