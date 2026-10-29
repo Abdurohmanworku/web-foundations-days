@@ -1,0 +1,9 @@
+# Day 8 Reflection
+
+The most difficult concept in this course was understanding how a system stays correct when many users try to do the same thing at the same time. At first, I thought preventing duplicate purchases was mostly a frontend problem: disable the button or refresh the seat map quickly. This assignment helped me understand that the real protection must happen in the backend, especially through database transactions, conditional updates, and unique constraints.
+
+I overcame this by breaking the purchase flow into small states: available, held, sold, and expired. Once I modeled the seat as having a clear status, it became easier to see where conflicts could happen. Writing the SQL for a seat hold also helped. The condition `WHERE status = 'AVAILABLE'` made it clear that only one transaction can successfully change a seat from available to held.
+
+Based on feedback from earlier assignments, I would improve the way I explain trade-offs. In previous work, I tended to list advantages and disadvantages without explaining why a choice fits the specific problem. For TicketHub, I tried to connect each trade-off to the major-sale scenario. For example, a cached seat map can be slightly delayed, but that is acceptable because the final seat hold is still checked transactionally.
+
+Next, I want to learn more about distributed systems and concurrency. In particular, I want to study idempotency keys, message queues, database isolation levels, and how real ticketing platforms handle payment retries. I would also like to practice implementing a small version of this system with PostgreSQL and Redis so I can test how transactions behave under simultaneous requests.
